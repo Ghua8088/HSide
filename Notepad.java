@@ -7,7 +7,9 @@ import java.util.HashMap;
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
-
+import ide.JavaKeyword.*;
+import java.net.URISyntaxException;
+import java.net.URL;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -17,7 +19,7 @@ public class Notepad extends JFrame implements ActionListener{
     JMenuBar menubar; 
     JScrollPane scroll;
     JMenu file,edit,help,fonts,fontStyle,fontsize;
-    JMenuItem newFile,openFile,saveFile,exit,bold,italic,underline,fontcollection;
+    JMenuItem newFile,openFile,saveFile,exit,bold,italic,underline,fontcollection,github;
     JButton viewmode;
     JButton confirmsize,confirmfont;
     JTextPane textArea;
@@ -32,7 +34,10 @@ public class Notepad extends JFrame implements ActionListener{
     JLabel word_count,line_count,character_count,support,font_size;
     ImageIcon icon;
     Font f;
+    JOptionPane notsaved;
+    boolean saved;
     public Notepad(){
+        saved=false;
         setFocusTraversalKeysEnabled(true);
         try {
             UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
@@ -56,7 +61,7 @@ public class Notepad extends JFrame implements ActionListener{
         line_count=new JLabel("Line Count: 0");
         word_count=new JLabel("Word Count: 0");
         character_count=new JLabel("Character Count: 0");
-        support=new JLabel("ASCII");
+        support=new JLabel("UTF-16");
         footer.add(word_count,BorderLayout.WEST);
         footer.add(character_count,BorderLayout.WEST);
         footer.add(support,BorderLayout.EAST);
@@ -93,6 +98,7 @@ public class Notepad extends JFrame implements ActionListener{
         fontSelector.setSize(300,300);
         fontSelector.setLocationRelativeTo(this);
         confirmfont=new JButton("▶");
+        github=new JMenuItem("git reference");
         confirmfont.addActionListener(this);
         fontcollection.addActionListener(this);
         fontcollection.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F,2));
@@ -113,9 +119,8 @@ public class Notepad extends JFrame implements ActionListener{
             @Override
             public void keyTyped(KeyEvent e) {
                 // Check if the typed key is a space
-                if(e.getKeyChar()==' '){
+                if(e.getKeyChar()=='\n'){
                     // If the word count is greater than 1, call highlightSyntax
-                    if(getWordCount(textArea.getText())>1)
                     highlightSyntax();
                 }
                 if(e.isShiftDown() && e.isControlDown()){
@@ -124,49 +129,7 @@ public class Notepad extends JFrame implements ActionListener{
                 }
                 
             }
-            void highlightSyntax() { //Higlights Syntax using javaKeyword
-                String s = textArea.getText();
-                String[] words = s.split("\\s+");
-                doc.setCharacterAttributes(0, s.length(), textArea.getStyle("regular"), true);
-                int currentIndex = 0;
-                for (String word : words) {
-                    int category =jk.categorize(word);
-                    currentIndex = s.indexOf(word,currentIndex);
-                    switch (category) {
-                        case 1:
-                            {   
-                                Style style = textArea.addStyle("bold", null);
-                                Color color = new Color(0,0,255);
-                                StyleConstants.setForeground(style, color);
-                                StyleConstants.setBold(style, true);
-                                doc.setCharacterAttributes(currentIndex-1, word.length()+1, style, false);
-                                break;
-                            }
-                        case 2:
-                            {
-                                Style style = textArea.addStyle("italic", null);
-                                Color color = new Color(0,255,0);
-                                StyleConstants.setForeground(style, color);
-                                StyleConstants.setItalic(style, true);
-                                doc.setCharacterAttributes(currentIndex-1, word.length()+1, style, false);
-                                break;
-                            }
-                        case 3:
-                            {
-                                Style style = textArea.addStyle("boldItalic", null);
-                                Color color = new Color(255,0,0);
-                                StyleConstants.setForeground(style, color);
-                                StyleConstants.setBold(style, true);
-                                StyleConstants.setItalic(style, true);
-                                doc.setCharacterAttributes(currentIndex-1, word.length(), style, false);
-                                break;
-                            }
-                        default:
-                            
-                            break;
-                    }
-                }
-            }
+            
         });
         fontselect.addItemListener((ItemEvent e) -> { //updates font preview
             fontpreview.setFont(new Font((String)fontselect.getSelectedItem(),Font.PLAIN,15));
@@ -185,10 +148,13 @@ public class Notepad extends JFrame implements ActionListener{
         italic.addActionListener(this);
         underline.addActionListener(this);
         confirmsize.addActionListener(this);
+        github.addActionListener(this);
         saveFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S,2));
         openFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O,2));
         newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N,2));
+        exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E,2));
         menubar.add(file);
+        help.add(github);
         menubar.add(edit);
         menubar.add(help);
         menubar.add(viewmode, BorderLayout.EAST);
@@ -216,6 +182,85 @@ public class Notepad extends JFrame implements ActionListener{
         character_count.setText("Character Count: "+getCharacterCount(textArea.getText()));
         line_count.setText("Line Count: "+getLineCount(textArea.getText()));
     }
+    void highlightSyntax() { //Higlights Syntax using javaKeyword
+
+        StyledDocument doc = textArea.getStyledDocument();
+        String s = textArea.getText();
+        String[] words = s.split("[(){}\\s]+");
+        String prev="";
+        doc.setCharacterAttributes(0, s.length(), textArea.getStyle("regular"), true);
+        int currentIndex = 0;
+        for (String word : words) {
+            int category =jk.categorize(word);
+            System.out.println(word);
+            currentIndex = s.indexOf(word,currentIndex);
+            if(prev!=null){
+                if(prev.equals("class")){
+                    jk.classlist.add(word);
+                }else if(jk.categorize(prev)==JavaKeyword.PREMIVITES){
+                    jk.obw.add(word);
+                }
+            }
+            switch (category) {
+                case JavaKeyword.JAVALANGUAGE:
+                    {   
+                        Style style = textArea.addStyle("bold", null);
+                        Color color = new Color(100,100,150);
+                        StyleConstants.setForeground(style, color);
+                        StyleConstants.setBold(style, true);
+                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
+                        break;
+                    }
+                case JavaKeyword.OPERATORS:
+                    {
+                        Style style = textArea.addStyle("italic", null);
+                        Color color = new Color(75,200,75);
+                        StyleConstants.setForeground(style, color);
+                        StyleConstants.setItalic(style, true);
+                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
+                        break;
+                    }
+                case JavaKeyword.PREMIVITES:
+                    {
+                        Style style = textArea.addStyle("boldItalic", null);
+                        Color color = new Color(200,75,75);
+                        StyleConstants.setForeground(style, color);
+                        StyleConstants.setBold(style, true);
+                        StyleConstants.setItalic(style, true);
+                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
+                        break;
+                    }
+                case JavaKeyword.OBJECT:
+                    {
+                        Style style = textArea.addStyle("bold", null);
+                        Color color = new Color(150,175,75);
+                        StyleConstants.setForeground(style, color);
+                        StyleConstants.setBold(style, true);
+                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
+                        break;
+                    }
+                default:
+                    break;
+            }
+            prev=word;
+        }
+    }
+    void save(){
+            fileChooser.showSaveDialog(this);
+            try {
+                File file = fileChooser.getSelectedFile();
+                FileOutputStream fos = new FileOutputStream(file);
+                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
+                String text = textArea.getText();
+                bw.write(text);
+                bw.close();
+                word_count.setText("Word Count: "+getWordCount(textArea.getText()));
+                character_count.setText("Character Count: "+getCharacterCount(textArea.getText()));
+                saved=true;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+    }
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource()==newFile){
@@ -225,6 +270,7 @@ public class Notepad extends JFrame implements ActionListener{
             int result=fileChooser.showOpenDialog(this);
             if(result==JFileChooser.APPROVE_OPTION){
                 try{
+                    jk.resetClasses();
                     File file=fileChooser.getSelectedFile();
                     FileInputStream fis=new FileInputStream(file);
                     BufferedReader br=new BufferedReader(new InputStreamReader(fis));
@@ -235,25 +281,18 @@ public class Notepad extends JFrame implements ActionListener{
                     }
                     br.close();
                     updatecounts();
+                    highlightSyntax();
+                    saved=false;
+                    jk.display();
                 }
                 catch(Exception ex){
                     ex.printStackTrace();
                 }
+                
             }
         }else if(e.getSource()==saveFile){
-            int result = fileChooser.showSaveDialog(this);
-            try {
-                File file = fileChooser.getSelectedFile();
-                FileOutputStream fos = new FileOutputStream(file);
-                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
-                String text = textArea.getText();
-                bw.write(text);
-                bw.close();
-                word_count.setText("Word Count: "+getWordCount(textArea.getText()));
-                character_count.setText("Character Count: "+getCharacterCount(textArea.getText()));
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            save();
+            
         }else if(e.getSource()==bold){
             textArea.setFont(textArea.getFont().deriveFont(Font.BOLD));
         }else if(e.getSource()==italic){
@@ -265,7 +304,18 @@ public class Notepad extends JFrame implements ActionListener{
         }else if(e.getSource()==confirmsize){
             textArea.setFont(new Font("Arial",Font.PLAIN,Integer.parseInt(fontSizeN.getText())));
         }else if(e.getSource()==exit){
+            if(!saved && textArea.getText().length()!=0){
+                int result=JOptionPane.showConfirmDialog(this,"      you have not saved, \n do you still want to close ?");
+                if(result==JOptionPane.YES_OPTION)
+                    System.exit(0);
+                else if(result==JOptionPane.NO_OPTION){
+                    save();
+                }else if(result==JOptionPane.CANCEL_OPTION){
+                    return;
+                }
+            }
             System.exit(0);
+            
         }else if(e.getSource()==fontcollection){
             fontSelector.setVisible(true);
         }else if(e.getSource()==confirmfont){
@@ -274,14 +324,22 @@ public class Notepad extends JFrame implements ActionListener{
         }else if(e.getSource()==viewmode){
             if(viewmode.getText().equals("☀️")){
                 viewmode.setText("🌙");
-                textArea.setBackground(Color.GRAY);
-                textArea.setForeground(Color.white);
+                textArea.setBackground(new Color(75,75,75));
+                textArea.setForeground(Color.WHITE);
             }else{
                 viewmode.setText("☀️");
-                textArea.setBackground(Color.WHITE);
+                textArea.setBackground(new Color(255,255,240));
                 textArea.setForeground(Color.BLACK);
-                
             }
+        }else if(e.getSource()==github){
+            try {
+                Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start " + "https://github.com/Ghua8088?tab=repositories"});
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+            System.out.println("Redirecting to GITHUB");
+
+            
         }
     }
     int getWordCount(String text){
