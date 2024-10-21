@@ -48,6 +48,7 @@ public class Notepad extends JFrame implements ActionListener{
         icon=new ImageIcon(getClass().getResource("HSIDE.png"));
         setSize(600,400);
         setTitle("HS IDE");
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -114,15 +115,14 @@ public class Notepad extends JFrame implements ActionListener{
             @Override
             public void keyTyped(KeyEvent e) {
                 // Check if the typed key is a space
-                if(e.getKeyChar()=='\n'){
-                    // If the word count is greater than 1, call highlightSyntax
+                if(e.getKeyChar()==' '){
                     highlightSyntax();
                 }
+                //shift + ctrl to go back
                 if(e.isShiftDown() && e.isControlDown()){
                     textArea.setCaretPosition(textArea.getCaretPosition()-1);
                     System.out.println("shift");
                 }
-                
             }
             
         });
