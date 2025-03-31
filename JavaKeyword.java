@@ -1,4 +1,7 @@
 package ide;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 public class JavaKeyword {
@@ -55,5 +58,32 @@ public class JavaKeyword {
     }
     void resetClasses(){
         classlist.clear();
+    }
+    void processimport(String s){
+        try {
+            Runtime.getRuntime().exec(new String[]{"cmd", "D:/coding/Java/GUI/ide", "javap " +s+" > importedclasses.txt"});
+            Runtime.getRuntime().exec(new String[]{"cmd", "D:/coding/Java/GUI/ide", "start"+"importedclasses.txt"});
+            System.out.println("Recieved all classes from "+s);
+        } catch (IOException e1) {
+            System.out.println("exception loading classes:"+e1);
+        }
+        try {
+            File f=new File(("importedclasses.txt"));
+            BufferedReader br=new BufferedReader(new java.io.FileReader(f));
+            String line;
+            while((line=br.readLine())!=null){
+                String words[]=line.split("[{}()//s+]");
+                String prev="";
+                for(String word:words){
+                    if(categorize(prev)==PREMIVITES){
+                        obw.add(word);
+                    }
+                }
+                
+            }
+            System.out.println(obw);
+        } catch (Exception e) {
+            System.out.println("exception loading file :"+e);
+        }
     }
 }
