@@ -48,7 +48,7 @@ public class Notepad extends JFrame implements ActionListener{
         icon=new ImageIcon(getClass().getResource("HSIDE.png"));
         setSize(600,400);
         setTitle("HS IDE");
-        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.NORMAL);
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -72,7 +72,6 @@ public class Notepad extends JFrame implements ActionListener{
         help=new JMenu("Help"); 
         viewmode=new JButton("☀️");
         viewmode.setToolTipText("Toggle Dark Mode");
-
         newFile=new JMenuItem("New");
         openFile=new JMenuItem("Open");
         saveFile=new JMenuItem("Save");
@@ -197,6 +196,8 @@ public class Notepad extends JFrame implements ActionListener{
             if(prev!=null){
                 if(prev.equals("class")){
                     jk.classlist.add(word);
+                }else if(prev.equals("import")){
+                    jk.processimport(word);
                 }else if(jk.categorize(prev)==JavaKeyword.PREMIVITES){
                     jk.obw.add(word);
                 }
