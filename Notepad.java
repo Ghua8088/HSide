@@ -4,6 +4,8 @@ import java.awt.event.*;
 import java.awt.font.TextAttribute;
 import java.io.*;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
 import javax.swing.text.Style;
@@ -181,63 +183,33 @@ public class Notepad extends JFrame implements ActionListener{
         line_count.setText("Line Count: "+getLineCount(textArea.getText()));
     }
     
-    void highlightSyntax() { //Higlights Syntax using javaKeyword
-
+    void highlightSyntax() {
         StyledDocument doc = textArea.getStyledDocument();
-        String s = textArea.getText();
-        String[] words = s.split("[(){}\\s]+");
-        String prev="";
-        doc.setCharacterAttributes(0, s.length(), textArea.getStyle("regular"), true);
-        int currentIndex = 0;
-        for (String word : words) {
-            int category =jk.categorize(word);
-            System.out.println(word);
-            currentIndex = s.indexOf(word,currentIndex);
-            if(prev!=null){
-                if(prev.equals("class")){
-                    jk.classlist.add(word);
-                }else if(prev.equals("import")){
-                    jk.processimport(word);
-                }else if(jk.categorize(prev)==JavaKeyword.PREMIVITES){
-                    jk.obw.add(word);
-                }
-            }
+        String text = textArea.getText();
+        doc.setCharacterAttributes(0, text.length(), textArea.getStyle("regular"), true);
+        Pattern pattern = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*|[\\p{Punct}&&[^_]]+"); // Match words and punctuation (excluding '_')
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            String word = matcher.group();
+            int category = jk.categorize(word);
+            int start = matcher.start();
             switch (category) {
-                case JavaKeyword.JAVALANGUAGE ->                     {   
-                        Style style = textArea.addStyle("bold", null);
-                        Color color = new Color(100,100,150);
-                        StyleConstants.setForeground(style, color);
-                        StyleConstants.setBold(style, true);
-                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
-                    }
-                case JavaKeyword.OPERATORS ->                     {
-                        Style style = textArea.addStyle("italic", null);
-                        Color color = new Color(75,200,75);
-                        StyleConstants.setForeground(style, color);
-                        StyleConstants.setItalic(style, true);
-                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
-                    }
-                case JavaKeyword.PREMIVITES ->                     {
-                        Style style = textArea.addStyle("boldItalic", null);
-                        Color color = new Color(200,75,75);
-                        StyleConstants.setForeground(style, color);
-                        StyleConstants.setBold(style, true);
-                        StyleConstants.setItalic(style, true);
-                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
-                    }
-                case JavaKeyword.OBJECT ->                     {
-                        Style style = textArea.addStyle("bold", null);
-                        Color color = new Color(150,175,75);
-                        StyleConstants.setForeground(style, color);
-                        StyleConstants.setBold(style, true);
-                        doc.setCharacterAttributes(currentIndex, word.length(), style, false);
-                    }
-                default -> {
+                case JavaKeyword.JAVALANGUAGE -> applyStyle(doc, start, word, Color.BLUE, true, false); // Java keywords
+                case JavaKeyword.OPERATORS -> applyStyle(doc, start, word, Color.GREEN, false, true); // Operators
+                case JavaKeyword.PREMIVITES -> applyStyle(doc, start, word, Color.RED, true, true); // Primitives
+                case JavaKeyword.OBJECT -> applyStyle(doc, start, word, Color.ORANGE, true, false); // Objects
+                default -> {break;
                 }
             }
-            prev=word;
         }
-        }
+    }
+    private void applyStyle(StyledDocument doc, int start, String word, Color color, boolean isBold, boolean isItalic) {
+        Style style = textArea.addStyle("syntaxStyle", null);
+        StyleConstants.setForeground(style, color);
+        StyleConstants.setBold(style, isBold);
+        StyleConstants.setItalic(style, isItalic);
+        doc.setCharacterAttributes(start, word.length(), style, false);
+    }
     void save(){
             fileChooser.showSaveDialog(this);
             try {
