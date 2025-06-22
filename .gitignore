@@ -1,0 +1,23 @@
+# Ignore compiled class files and build output
+/out/
+/*.class
+.bat
+*.jar
+# Ignore IDE/project files
+*.iml
+.idea/
+.vscode/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+# Ignore logs and temporary files
+*.log
+*.tmp
+
+# Ignore user-specific files
+*.swp
+*~
+buildtools/
+# Ignore generated files
+HSIDE.png
