@@ -1,9 +1,13 @@
 package ide;
 import java.awt.Desktop;
 import java.awt.HeadlessException;
-import java.io.*;
-import java.net.*;
-import javax.swing.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import javax.swing.JOptionPane;
 public class OllamaInstaller {
     private static final String OLLAMA_URL = "https://ollama.ai/download";
     private static final String DEFAULT_MODEL = "qwen2.5-coder:0.5b";
@@ -20,7 +24,6 @@ public class OllamaInstaller {
             }
         }
     }
-    
     private static boolean isOllamaInstalled() {
         try {
             // Check if ollama command exists
@@ -66,7 +69,6 @@ public class OllamaInstaller {
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
                 }
-                
                 int exitCode = process.waitFor();
                 if (exitCode == 0) {
                     System.out.println("Successfully downloaded model: " + DEFAULT_MODEL);

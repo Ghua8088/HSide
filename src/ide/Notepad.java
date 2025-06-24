@@ -1,48 +1,64 @@
+
 package ide;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.font.TextAttribute;
 import java.io.*;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.StyleContext;
+
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
+
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.vdurmont.emoji.EmojiParser;
+
 import javax.swing.event.DocumentListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.JTextPane;
 import javax.swing.text.Style;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.StyleConstants;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 public class Notepad extends JFrame implements ActionListener{
     private String aiGhostSuggestion = "";
     private org.fife.ui.rtextarea.Gutter gutter;
     private int suggestionStart = -1;
     JMenuBar menubar; 
+    
     AIClient aiClient=new AIClient();
     //JScrollPane scroll;
     JMenu file,edit,help,AI,fonts,fontStyle,fontsize;
     JMenuItem newFile,openFile,saveFile,exit,bold,italic,underline,fontcollection,github,AISettings;
     JButton viewmode;
     JButton confirmsize,confirmfont;
+    private File currentProjectRoot;
     RSyntaxTextArea textArea;
     JPanel fontSize;
     JComboBox<String> fontselect;
+    private JTree fileTree;
+    private Terminal terminal;
+    private DefaultTreeModel treeModel;
+    private JSplitPane splitPane;
     JLabel fontpreview;
     String fontS[]=GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();//gets all Font Names
-    JTextField fontSizeN; // Font Size Text Field
-    JFileChooser fileChooser; //open , save built-in file chooser
-    JDialog fontSelector; // Font Selector Dialog
-    JDialog aiSettingsDialog; // AI Settings Dialog
+    JTextField fontSizeN; 
+    JFileChooser fileChooser; 
+    JDialog fontSelector; 
+    JDialog aiSettingsDialog; 
     JPanel footer;
     JLabel word_count,line_count,character_count,support,font_size;
     ImageIcon icon;
@@ -59,19 +75,23 @@ public class Notepad extends JFrame implements ActionListener{
     JDialog findReplaceDialog;
     JTextField findField, replaceField;
     JButton findNextBtn, replaceBtn, replaceAllBtn, closeBtn;
+    MouseAdapter  mouseAdapter;
     int lastFindIndex = -1;
     public Notepad(){
         saved=false;
         setFocusTraversalKeysEnabled(true);
         try {
-            UIManager.setLookAndFeel(new FlatLightLaf());
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+            SwingUtilities.updateComponentTreeUI(this);
         } catch (Exception e) {
             System.out.println("Failed to initialize FlatLaf");
         }
         f=new Font("Arial",Font.PLAIN,20);
         icon=new ImageIcon("HSIDE.png");
-
-        setSize(800, 600); // Larger default size
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int width = screenSize.width;
+        int height = screenSize.height;
+        setSize((int) (width * 0.8), (int) (height * 0.8));
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override
@@ -82,6 +102,8 @@ public class Notepad extends JFrame implements ActionListener{
         setLocationRelativeTo(null);
         setIconImage(icon.getImage());
         menubar=new JMenuBar();
+        menubar.setBackground(new Color(30,30,30));
+        menubar.setForeground(Color.WHITE);
         footer=new JPanel();
         footer.setLayout(new BoxLayout(footer, BoxLayout.X_AXIS));
         line_count=new JLabel("Line Count: 0");
@@ -100,7 +122,7 @@ public class Notepad extends JFrame implements ActionListener{
         edit=new JMenu("Edit");
         help=new JMenu("Help");
         AI=new JMenu("AI");
-        viewmode=new JButton(EmojiParser.parseToUnicode(":sunny:"));
+        viewmode=new JButton(EmojiParser.parseToUnicode(":night_with_stars:")); // Default to dark emoji
         viewmode.setToolTipText("Toggle Dark Mode");
         newFile=new JMenuItem("New");
         openFile=new JMenuItem("Open");
@@ -108,19 +130,75 @@ public class Notepad extends JFrame implements ActionListener{
         exit=new JMenuItem("Exit");
         AISettings=new JMenuItem("AI Settings");
         textArea = new GhostTextPane();
-        
         textArea.setCurrentLineHighlightColor(new Color(10,10,10,10)); 
         textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
         textArea.setCodeFoldingEnabled(true);
         textArea.setFont(new Font("Consolas", Font.PLAIN, 20));
+        textArea.setBackground(new Color(45,45,45));
+        textArea.setForeground(Color.WHITE);
+        textArea.setCaretColor(Color.WHITE);
         RTextScrollPane scroll = new RTextScrollPane(textArea);
+        currentProjectRoot = new File(System.getProperty("user.dir"));
+        DefaultMutableTreeNode rootNode = createFileTree(currentProjectRoot);
+        treeModel = new DefaultTreeModel(rootNode);
+        fileTree = new JTree(treeModel);
+        fileTree.putClientProperty("JTree.lineStyle", "None");
+        fileTree.setRowHeight(20);
+        fileTree.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        fileTree.setRootVisible(true);
+        fileTree.setShowsRootHandles(true);
+        mouseAdapter= new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 2) {
+                        splitPane.setDividerLocation(200);
+                        TreePath path = fileTree.getSelectionPath();
+                        if (path != null) {
+                            StringBuilder filePath = new StringBuilder(currentProjectRoot.getAbsolutePath());
+                            Object[] nodes = path.getPath();
+                            for (int i = 1; i < nodes.length; i++) { // skip root
+                                filePath.append(File.separator).append(nodes[i].toString());
+                            }
+                            File selectedFile = new File(filePath.toString());
+                            try {
+                                String mimeType = Files.probeContentType(selectedFile.toPath());
+                                if (mimeType == null || !mimeType.startsWith("text")) {
+                                    JOptionPane.showMessageDialog(Notepad.this, "Unsupported file type: " + mimeType);
+                                    return;
+                                }
+                            } catch (IOException ex) {
+                                JOptionPane.showMessageDialog(Notepad.this, "Could not determine file type.");
+                                return;
+                            }
+                            if (selectedFile.isFile()) {
+                                try (BufferedReader br = new BufferedReader(new FileReader(selectedFile))) {
+                                    textArea.setText("");
+                                    String line;
+                                    while ((line = br.readLine()) != null) {
+                                        textArea.append(line + "\n");
+                                    }
+                                } catch (IOException ex) {
+                                    JOptionPane.showMessageDialog(Notepad.this, "Failed to open file: " + ex.getMessage());
+                                }
+                            }
+                        }
+                    }
+                }
+        };
+        fileTree.addMouseListener(mouseAdapter);
+        JScrollPane treeScroll = new JScrollPane(fileTree);
+        terminal = new Terminal(currentProjectRoot.getAbsolutePath());
+        JScrollPane terminalScroll = new JScrollPane(terminal);
+        JSplitPane terminalcodearea = new JSplitPane(JSplitPane.VERTICAL_SPLIT,scroll, terminalScroll);
+        terminalcodearea.setDividerLocation(600);
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,  treeScroll ,terminalcodearea);
+        splitPane.setDividerLocation(200);
         gutter = scroll.getGutter();
-        // Set initial (light mode) gutter style
-        gutter.setBackground(new Color(245, 245, 245));
-        gutter.setLineNumberColor(new Color(80, 80, 80));
-        gutter.setLineNumberFont(new Font("Consolas", Font.PLAIN, 16));
-        gutter.setBorderColor(new Color(200, 200, 200));
-        gutter.setCurrentLineNumberColor(new Color(0, 120, 215));
+        gutter.setBackground(new Color(30, 30, 30));
+        gutter.setLineNumberColor(new Color(0, 255, 239));
+        gutter.setLineNumberFont(new Font("Consolas", Font.PLAIN, 10));
+        gutter.setBorderColor(new Color(60, 60, 60));
+        gutter.setCurrentLineNumberColor(new Color(50, 255, 239));
+        ((GhostTextPane)textArea).setDarkMode(true);
         fileChooser=new JFileChooser();
         fonts=new JMenu("Fonts");
         fontselect=new JComboBox<>(fontS);
@@ -145,7 +223,8 @@ public class Notepad extends JFrame implements ActionListener{
         ));
         fontSelector=new JDialog(this, "Font Selector", true);
         fontSelector.setSize(300,300);
-        fontSelector.getContentPane().setBackground(Color.WHITE);
+        fontSelector.getContentPane().setBackground(new Color(45,45,45));
+        fontSelector.getContentPane().setForeground(Color.WHITE);
 
         confirmfont=new JButton("▶");
         github=new JMenuItem("git reference");
@@ -153,6 +232,8 @@ public class Notepad extends JFrame implements ActionListener{
         fontcollection.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F,KeyEvent.ALT_DOWN_MASK));
         fontSelector.add(fontselect,BorderLayout.NORTH);
         fontpreview.setFont(f);
+        fontpreview.setBackground(new Color(45,45,45));
+        fontpreview.setForeground(Color.WHITE);
         fontSelector.add(fontpreview,BorderLayout.CENTER);
         fontSelector.add(confirmfont,BorderLayout.SOUTH);
         //textArea.addStyle("regular", null);
@@ -205,7 +286,7 @@ public class Notepad extends JFrame implements ActionListener{
         fontSize.add(fontSizeN);
         fontSize.add(confirmsize);
         textArea.setFont(f);
-        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         saveFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S,2));
         openFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O,2));
         newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N,2));
@@ -230,7 +311,7 @@ public class Notepad extends JFrame implements ActionListener{
         edit.add(fonts);
         //scroll=new JScrollPane(textArea);
         add(menubar,BorderLayout.NORTH);
-        add(scroll, BorderLayout.CENTER);
+        add(splitPane, BorderLayout.CENTER);
         add(footer,BorderLayout.SOUTH);
         viewmode.addActionListener(this);
         confirmfont.addActionListener(this);
@@ -382,6 +463,21 @@ public class Notepad extends JFrame implements ActionListener{
             System.exit(0);
         }
     }
+    private DefaultMutableTreeNode createFileTree(File dir) {
+        DefaultMutableTreeNode node = new DefaultMutableTreeNode(dir.getName());
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    node.add(createFileTree(file));
+                    
+                } else {
+                    node.add(new DefaultMutableTreeNode(file.getName()));
+                }
+            }
+        }
+        return node;
+    }
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource()==newFile){
@@ -389,9 +485,15 @@ public class Notepad extends JFrame implements ActionListener{
         }
         else if(e.getSource()==openFile){
             int result=fileChooser.showOpenDialog(this);
-            if(result==JFileChooser.APPROVE_OPTION){
+            if(result==JFileChooser.APPROVE_OPTION && fileChooser.getSelectedFile().isDirectory()){
+                File selectedDir = fileChooser.getSelectedFile();
+                currentProjectRoot = selectedDir;
+                DefaultMutableTreeNode rootNode = createFileTree(selectedDir);
+                treeModel.setRoot(rootNode);
+            }else{
                 try{
                     File readfile=fileChooser.getSelectedFile();
+                    SyntaxHelper.setSyntaxStyleByExtension(textArea, readfile.getPath());
                     FileInputStream fis=new FileInputStream(readfile);
                     try (BufferedReader br = new BufferedReader(new InputStreamReader(fis))) {
                         textArea.setText("");
@@ -559,56 +661,4 @@ public class Notepad extends JFrame implements ActionListener{
         }
         SwingUtilities.invokeLater(Notepad::new);
     }    
-}
-class GhostTextPane extends RSyntaxTextArea {
-    private String ghostText = "";
-    private int ghostTextPosition = -1;
-    private boolean darkMode = false;
-
-    public void setDarkMode(boolean darkMode) {
-        this.darkMode = darkMode;
-    }
-
-    public void setGhostText(String text, int position) {
-        this.ghostText = text;
-        this.ghostTextPosition = position;
-        repaint();
-    }
-
-    public void clearGhostText() {
-        this.ghostText = "";
-        this.ghostTextPosition = -1;
-        repaint();
-    }
-
-    public String getGhostText() {
-        return ghostText;
-    }
-
-    public int getGhostTextPosition() {
-        return ghostTextPosition;
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-
-        if (!ghostText.isEmpty() && ghostTextPosition >= 0) {
-            try {
-                Rectangle r = modelToView(ghostTextPosition);
-                if (r != null) {
-                    Graphics2D g2d = (Graphics2D) g.create();
-                    Color ghostColor = darkMode
-                        ? new Color(180, 180, 180, 150)
-                        : new Color(100, 100, 100, 150);
-                    g2d.setColor(ghostColor);
-                    g2d.setFont(getFont().deriveFont(Font.ITALIC));
-                    g2d.drawString(ghostText, r.x, r.y + g.getFontMetrics().getAscent());
-                    g2d.dispose();
-                }
-            } catch (BadLocationException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }

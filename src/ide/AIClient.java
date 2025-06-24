@@ -1,17 +1,43 @@
 package  ide;
 import org.json.JSONObject;
 import org.json.JSONArray;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+
+import javax.swing.JOptionPane;
 public class AIClient {
     private String url;
     private String port;
     private String model;
-    AIClient(){
-        this.port="11434";
-        this.url="http://localhost:";
-        this.model="qwen2.5-coder:0.5b";
+    private boolean isOllamaRunning() {
+        try {
+            URL url = new URL(this.url + this.port + "/api/tags");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(1000);
+            conn.connect();
+            return conn.getResponseCode() == 200;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    AIClient() {
+        this.port = "11434";
+        this.url = "http://localhost:";
+        this.model = "qwen2.5-coder:0.5b";
+        if (!isOllamaRunning()) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder("ollama", "serve");
+                pb.redirectErrorStream(true);
+                pb.start();
+                System.out.println("Started Ollama.");
+            } catch (IOException e) {
+                System.out.println("Error starting Ollama: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Ollama already running.");
+        }
     }
     public void setport(String port){
         this.port=port;
@@ -32,6 +58,9 @@ public class AIClient {
         return this.model;
     }
     public String getAISuggestion(String context) {
+        if(context.equals("")){
+            return "";
+        }
         try {
             System.out.println("Getting Suggestion...");
             String prompt =  """
