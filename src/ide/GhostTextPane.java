@@ -1,3 +1,4 @@
+package ide;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import java.awt.*;
 import javax.swing.text.BadLocationException;
