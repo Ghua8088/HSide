@@ -13,7 +13,8 @@ public class AIClient {
     private String model;
     private boolean isOllamaRunning() {
         try {
-            URL url = new URL(this.url + this.port + "/api/tags");
+            URI uri = URI.create(this.url + this.port + "/api/tags");
+            URL url = uri.toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(1000);
             conn.connect();
@@ -75,7 +76,8 @@ public class AIClient {
                 .put("stream", false);
             System.out.println("Payload:\n" + payload.toString(2));
             // Setup HTTP connection
-            URL url = new URL(this.url+this.port+"/api/generate");
+            URI uri = URI.create(this.url+this.port+"/api/generate");
+            URL url = uri.toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);
@@ -128,7 +130,8 @@ public class AIClient {
     }
     public String[] getAvailableModels() {
         try {
-            URL url = new URL(this.url + this.port + "/api/tags");
+            URI uri = URI.create(this.url + this.port + "/api/tags");
+            URL url = uri.toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);

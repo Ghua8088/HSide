@@ -1,9 +1,12 @@
 package ide;
 
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -13,30 +16,26 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import javax.swing.JButton;
+import javax.swing.SwingUtilities;
 
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
-
-import javax.swing.JTextArea;
-import javax.swing.SwingUtilities;
 public final class Terminal extends RSyntaxTextArea{
-    
-    private Process process;
+    private static final long serialVersionUID = 1L;
+    private transient Process process;
     private boolean isRunning = false;
     private File currentDir;
     private String prompt = "> ";
     private int inputStart = 0;
+    
     JButton copyBtn = new JButton("Copy");
     public Terminal(String projectRoot) {
         append("Welcome to the HSIDE terminal!\n");
-        copyBtn.addActionListener(new java.awt.event.ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String selectedText = Terminal.this.getSelectedText();
-                if (selectedText != null && !selectedText.isEmpty()) {
-                    StringSelection selection = new StringSelection(selectedText);
-                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
-                }
+        copyBtn.addActionListener((ActionEvent e) -> {
+            String selectedText = Terminal.this.getSelectedText();
+            if (selectedText != null && !selectedText.isEmpty()) {
+                StringSelection selection = new StringSelection(selectedText);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
             }
         });
         add(copyBtn);
@@ -44,38 +43,50 @@ public final class Terminal extends RSyntaxTextArea{
         currentDir = new File(projectRoot);
         updatePrompt();
         String os = getCurrentOS();
-        if (os.equals("Windows")) {
-            setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_WINDOWS_BATCH);
-        }else if (os.equals("Unix")) {
-            setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_UNIX_SHELL);
-        }else{
-            setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_NONE);
+        try {
+            switch (os) {
+                case "Windows" -> setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_WINDOWS_BATCH);
+                case "Unix" -> setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_UNIX_SHELL);
+                case "Unknown" -> setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_NONE);
+                default -> throw new AssertionError();
+            }
+        } catch (Exception e) {
+            append("[ERR] Failed to set syntax style: " + e.getMessage() + "\n");
         }
         this.setCurrentLineHighlightColor(new Color(0, 0, 0, 0));
         this.setBackground(new Color(50, 50, 50));
         this.setForeground(Color.WHITE);
         this.setCaretColor(Color.WHITE);
+        this.setFont(new Font("Consolas", Font.PLAIN, 12));
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                // Prevent backspacing into output area
-                if (getCaretPosition() < inputStart) {
-                    setCaretPosition(getText().length());
-                }
-
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    e.consume();
-                    String fullText = getText();
-                    String command = fullText.substring(inputStart).trim();
-                    append("\n");
-                    handleCommand(command);
+                try {
+                    if (getCaretPosition() < inputStart) {
+                        setCaretPosition(getText().length());
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                        e.consume();
+                        String fullText = getText();
+                        String command = fullText.substring(inputStart).trim();
+                        append("\n");
+                        handleCommand(command);
+                    }
+                } catch (Exception ex) {
+                    append("[ERR] Terminal error: " + ex.getMessage() + "\n");
+                    updatePrompt();
                 }
             }
             @Override
             public void keyTyped(KeyEvent e) {
-                // Prevent typing into output area
-                if (getCaretPosition() < inputStart) {
-                    setCaretPosition(getText().length());
+                try {
+                    // Prevent typing into output area
+                    if (getCaretPosition() < inputStart) {
+                        setCaretPosition(getText().length());
+                    }
+                } catch (Exception ex) {
+                    append("[ERR] Terminal error: " + ex.getMessage() + "\n");
+                    updatePrompt();
                 }
             }
         });
@@ -144,7 +155,7 @@ public final class Terminal extends RSyntaxTextArea{
             updatePrompt();
             return;
         }
-
+        
         new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
@@ -204,12 +215,13 @@ public final class Terminal extends RSyntaxTextArea{
             updatePrompt();
         }
     }
+    @Override
     public String getSelectedText() {
-        String selectedText = null;
+        String selectedText ="";
         try {
             selectedText = (String) Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (HeadlessException | UnsupportedFlavorException | IOException e) {
+            System.err.println("Failed to get clipboard contents: " + e.getMessage());
         }
         return selectedText;
     }

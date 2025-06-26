@@ -1,61 +1,27 @@
 package  ide;
-import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 public class SyntaxHelper {
     public static void setSyntaxStyleByExtension(RSyntaxTextArea textArea, String filePath) {
         String extension = getFileExtension(filePath).toLowerCase();
 
         switch (extension) {
-            case "java":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
-                break;
-            case "py":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PYTHON);
-                break;
-            case "js":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
-                break;
-            case "html":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_HTML);
-                break;
-            case "css":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_CSS);
-                break;
-            case "c":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_C);
-                break;
-            case "cpp":
-            case "cxx":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_CPLUSPLUS);
-                break;
-            case "xml":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_XML);
-                break;
-            case "json":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JSON);
-                break;
-            case "sh":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_UNIX_SHELL);
-                break;
-            case "rb":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_RUBY);
-                break;
-            case "kt":
-            case "kts":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_KOTLIN);
-                break;
-            case "go":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_GO);
-                break;
-            case "ts":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_TYPESCRIPT);
-                break;
-            case "php":
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PHP);
-                break;
-            default:
-                textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_NONE);
-                break;
+            case "java" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
+            case "py" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PYTHON);
+            case "js" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
+            case "html" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_HTML);
+            case "css" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_CSS);
+            case "c" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_C);
+            case "cpp", "cxx" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_CPLUSPLUS);
+            case "xml" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_XML);
+            case "json" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JSON);
+            case "sh" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_UNIX_SHELL);
+            case "rb" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_RUBY);
+            case "kt", "kts" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_KOTLIN);
+            case "go" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_GO);
+            case "ts" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_TYPESCRIPT);
+            case "php" -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_PHP);
+            default -> textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_NONE);
         }
     }
     private static String getFileExtension(String path) {

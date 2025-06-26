@@ -27,7 +27,7 @@ public class OllamaInstaller {
     private static boolean isOllamaInstalled() {
         try {
             // Check if ollama command exists
-            Process process = Runtime.getRuntime().exec("ollama --version");
+            Process process = Runtime.getRuntime().exec(new String[]{"ollama", "--version"});
             return process.waitFor() == 0;
         } catch (IOException | InterruptedException e) {
             return false;
@@ -60,7 +60,7 @@ public class OllamaInstaller {
                 }
                 
                 // Pull the default model
-                Process process = Runtime.getRuntime().exec("ollama pull " + DEFAULT_MODEL);
+                Process process = Runtime.getRuntime().exec(new String[]{"ollama", "pull", DEFAULT_MODEL});
                 BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()));
                 

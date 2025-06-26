@@ -1,8 +1,15 @@
 package ide;
-import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+
 import javax.swing.text.BadLocationException;
+
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 public class GhostTextPane extends RSyntaxTextArea {
+    private static final long serialVersionUID = 1L;
     private String ghostText = "";
     private int ghostTextPosition = -1;
     private boolean darkMode = false;
@@ -31,7 +38,7 @@ public class GhostTextPane extends RSyntaxTextArea {
 
         if (!ghostText.isEmpty() && ghostTextPosition >= 0) {
             try {
-                Rectangle r = modelToView(ghostTextPosition);
+                Rectangle r = modelToView2D(ghostTextPosition).getBounds();
                 if (r != null) {
                     Graphics2D g2d = (Graphics2D) g.create();
                     Color ghostColor = darkMode
@@ -43,7 +50,7 @@ public class GhostTextPane extends RSyntaxTextArea {
                     g2d.dispose();
                 }
             } catch (BadLocationException e) {
-                e.printStackTrace();
+                System.err.println("GhostTextPane.paintComponent(): " + e.getMessage());
             }
         }
     }
