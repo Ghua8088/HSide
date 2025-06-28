@@ -58,27 +58,23 @@ public class AIClient {
     public String getModel(){
         return this.model;
     }
-    public String getAISuggestion(String context) {
-        if(context.equals("")){
+    public String getAISuggestion(String context, int caretPosition) {
+        if (context == null || context.isEmpty()) {
             return "";
         }
+
         try {
             System.out.println("Getting Suggestion...");
-            String prompt =  """
-            You are an autocomplete assistant. Given the currentcontext,Do NOT repeat existing code. Do NOT return the whole code or class, only the next likely completion.
-            Current code:
-            """ + context + """
-            // Suggest the next code fragment:
-            """;
+            String beforeCaret = context.substring(0, caretPosition);
+            String afterCaret = context.substring(caretPosition);
+            String prompt = PromptBuilder.autocompletePrompt(afterCaret,beforeCaret);
             JSONObject payload = new JSONObject()
                 .put("model", "qwen2.5-coder:0.5b")
                 .put("prompt", prompt)
                 .put("stream", false);
             System.out.println("Payload:\n" + payload.toString(2));
-            // Setup HTTP connection
-            URI uri = URI.create(this.url+this.port+"/api/generate");
-            URL url = uri.toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            URI uri = URI.create(this.url + this.port + "/api/generate");
+            HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);
             conn.setRequestMethod("POST");
@@ -95,17 +91,11 @@ public class AIClient {
                     response.append(line);
                 }
             }
-
-            // Parse JSON
             JSONObject json = new JSONObject(response.toString());
             String fullResponse = json.getString("response").trim();
             System.out.println("Full Response:\n" + fullResponse);
             String suggestion = extractCodeBlock(fullResponse);
             System.out.println("Suggestion:\n" + suggestion);
-            // Heuristic: if response *starts* with original code, extract suffix
-            if (suggestion.startsWith(context)) {
-                return suggestion.substring(context.length()).trim();
-            }
             return suggestion;
         } catch (Exception ex) {
             System.out.println("AI Suggestion Error: " + ex.getMessage());

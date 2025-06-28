@@ -2,12 +2,16 @@ package ide;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.font.TextAttribute;
+import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collections; 
 
+import javax.imageio.ImageIO;
+import javax.management.ServiceNotFoundException;
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
 import javax.swing.text.BadLocationException;
@@ -15,7 +19,6 @@ import javax.swing.text.BadLocationException;
 import org.xml.sax.InputSource;
 
 import org.fife.ui.rtextarea.Gutter;
-
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.FlatDarkLaf;
@@ -43,6 +46,7 @@ public final class Notepad extends JFrame implements ActionListener{
     JMenu file,edit,help,AI,fonts,fontStyle,fontsize,linterSettings;
     JMenuItem newFile,openFile,saveFile,exit,bold,italic,underline,fontcollection,github,AISettings,modifyLinterSettings;
     JButton viewmode;
+    private boolean isDarkMode = true;
     private JTabbedPane tabbedPane;
     JButton confirmsize,confirmfont;
     private File currentProjectRoot;
@@ -61,6 +65,8 @@ public final class Notepad extends JFrame implements ActionListener{
     JPanel footer;
     JLabel word_count,line_count,character_count,support,font_size;
     ImageIcon icon;
+    ImageIcon darkmodeIcon = loadIcon("/icons/darkmode.png", 16, false);
+    ImageIcon lightmodeIcon = loadIcon("/icons/lightmode.png", 16,true);
     Font f;
     boolean saved=false;
     // AI settings state
@@ -87,7 +93,7 @@ public final class Notepad extends JFrame implements ActionListener{
         }
         SwingUtilities.updateComponentTreeUI(getRootPane());
         f=new Font("Arial",Font.PLAIN,20);
-        icon=new ImageIcon("HSIDE.png");
+        icon=loadIcon("/icons/HSIDE.png", 24, false);
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         int width = screenSize.width;
         int height = screenSize.height;
@@ -104,6 +110,7 @@ public final class Notepad extends JFrame implements ActionListener{
         menubar=new JMenuBar();
         menubar.setBackground(new Color(30,30,30));
         menubar.setForeground(Color.WHITE);
+        menubar.setPreferredSize(new Dimension(width, 24)); 
         footer=new JPanel();
         footer.setLayout(new BoxLayout(footer, BoxLayout.X_AXIS));
         line_count=new JLabel("Line Count: 0");
@@ -119,10 +126,11 @@ public final class Notepad extends JFrame implements ActionListener{
         footer.add(line_count);
         footer.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         file=new JMenu("File");
-        edit=new JMenu("Edit");
-        help=new JMenu("Help");
+        edit=new JMenu("edit");
+        help=new JMenu("help");
         AI=new JMenu("AI");
-        viewmode=new JButton(EmojiParser.parseToUnicode(":night_with_stars:")); // Default to dark emoji
+        
+        viewmode=new JButton(darkmodeIcon); // Default to dark emoji
         viewmode.setToolTipText("Toggle Dark Mode");
         newFile=new JMenuItem("New");
         openFile=new JMenuItem("Open");
@@ -621,11 +629,11 @@ public final class Notepad extends JFrame implements ActionListener{
             editor.getTextArea().setFont(new Font((String)fontselect.getSelectedItem(),Font.PLAIN,Integer.parseInt(fontSizeN.getText())));
             fontSelector.setVisible(false);
         }else if(e.getSource()==viewmode){
-            boolean toDark = viewmode.getText().equals(EmojiParser.parseToUnicode(":sunny:"));
+            isDarkMode = !isDarkMode;
             for (int i = 0; i < tabbedPane.getTabCount(); i++) {
                 Editor ed = (Editor) tabbedPane.getComponentAt(i);
                 Font currentFont = ed.getTextArea().getFont();
-                if(toDark){
+                if(isDarkMode){
                     ed.getTextArea().setBackground(new Color(45,45,45));
                     ed.getTextArea().setForeground(new Color(190,190,190,190));
                     ed.getTextArea().setCaretColor(Color.WHITE);
@@ -653,8 +661,8 @@ public final class Notepad extends JFrame implements ActionListener{
                 // Save the font for reapplication after UI update
                 ed.getTextArea().putClientProperty("savedFont", currentFont);
             }
-            if(toDark){
-                viewmode.setText(EmojiParser.parseToUnicode(":night_with_stars:"));
+            if(isDarkMode){
+                viewmode.setIcon(darkmodeIcon);
                 menubar.setBackground(new Color(30,30,30));
                 menubar.setForeground(Color.WHITE);
                 footer.setBackground(new Color(30,30,30));
@@ -668,7 +676,7 @@ public final class Notepad extends JFrame implements ActionListener{
                     NotificationsHandler.showError("Failed to set Dark Mode: " + ex.getMessage());
                 }
             }else{
-                viewmode.setText(EmojiParser.parseToUnicode(":sunny:"));
+                viewmode.setIcon(lightmodeIcon);
                 menubar.setBackground(null);
                 menubar.setForeground(null);
                 footer.setBackground(null);
@@ -830,5 +838,38 @@ public final class Notepad extends JFrame implements ActionListener{
     }
     private Editor getCurrentEditor() {
         return (Editor) tabbedPane.getSelectedComponent();
+    }
+   public ImageIcon loadIcon(String path, int size, boolean invert) {
+        try {
+            URL resource = getClass().getResource(path);
+            if (resource == null) {
+                throw new IllegalArgumentException("Resource not found: " + path);
+            }
+            BufferedImage original = ImageIO.read(resource);
+
+            // Invert colors if needed
+            if (invert) {
+                for (int y = 0; y < original.getHeight(); y++) {
+                    for (int x = 0; x < original.getWidth(); x++) {
+                        int rgba = original.getRGB(x, y);
+                        Color col = new Color(rgba, true);
+                        Color inv = new Color(255 , 0, 0, col.getAlpha());
+                        original.setRGB(x, y, inv.getRGB());
+                    }
+                }
+            }
+
+            BufferedImage scaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = scaled.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2.drawImage(original, 0, 0, size, size, null);
+            g2.dispose();
+            return new ImageIcon(scaled);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }

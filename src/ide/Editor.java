@@ -63,7 +63,7 @@ public class Editor extends JPanel {
                     System.out.println("shift");
                 }else if (e.getKeyCode() == KeyEvent.VK_SPACE && e.isControlDown()) {
                     String context = getText().substring(0, getCaretPosition());
-                    String suggestion = aiClient.getAISuggestion(context);
+                    String suggestion = aiClient.getAISuggestion(context,textArea.getCaretPosition());
                     if (!suggestion.isEmpty()) {
                         textArea.setGhostText(suggestion,  getCaretPosition());
                         e.consume();
@@ -102,7 +102,6 @@ public class Editor extends JPanel {
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-
             }
         });
         gutter.addMouseMotionListener(new MouseMotionAdapter() {
@@ -171,6 +170,18 @@ public class Editor extends JPanel {
     public RTextScrollPane getScrollPane() {
         return scrollPane;
     }
+    public String getLineAtCaret(JTextArea textArea) {
+        try {
+            int caretPos = textArea.getCaretPosition();
+            int line = textArea.getLineOfOffset(caretPos);
+            int start = textArea.getLineStartOffset(line);
+            int end = textArea.getLineEndOffset(line);
+            return textArea.getText(start, end - start);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
     @Override
     public void setFont(Font font) {
         if (textArea != null) textArea.setFont(font);
@@ -219,9 +230,7 @@ public class Editor extends JPanel {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(color);
             g2.setStroke(new BasicStroke(2));
-
             int mid = size / 2;
-
             switch (direction) {
                 case SwingConstants.EAST -> {
                     // Draw a chevron >
