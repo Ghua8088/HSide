@@ -19,7 +19,8 @@ import javax.swing.text.BadLocationException;
 import org.xml.sax.InputSource;
 
 import org.fife.ui.rtextarea.Gutter;
-
+import com.formdev.flatlaf.intellijthemes.materialthemeuilite.FlatGitHubDarkIJTheme;
+import com.formdev.flatlaf.intellijthemes.FlatCyanLightIJTheme;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.vdurmont.emoji.EmojiParser;
@@ -671,8 +672,8 @@ public final class Notepad extends JFrame implements ActionListener{
                 fontSelector.getContentPane().setForeground(Color.WHITE);
                 fontpreview.setBackground(new Color(45,45,45));
                 fontpreview.setForeground(Color.WHITE);
-                try { UIManager.setLookAndFeel(new FlatDarkLaf()); SwingUtilities.updateComponentTreeUI(this); } 
-                catch (UnsupportedLookAndFeelException | RuntimeException ex) {
+                try { FlatCyanLightIJTheme.setup(); } 
+                catch ( RuntimeException ex) {
                     NotificationsHandler.showError("Failed to set Dark Mode: " + ex.getMessage());
                 }
             }else{
@@ -685,8 +686,8 @@ public final class Notepad extends JFrame implements ActionListener{
                 fontSelector.getContentPane().setForeground(Color.BLACK);
                 fontpreview.setBackground(Color.WHITE);
                 fontpreview.setForeground(Color.BLACK);
-                try { UIManager.setLookAndFeel(new FlatLightLaf()); SwingUtilities.updateComponentTreeUI(this); }
-                catch (UnsupportedLookAndFeelException | RuntimeException ex) {
+                try { FlatGitHubDarkIJTheme.setup(); }
+                catch (RuntimeException ex) {
                     NotificationsHandler.showError("Failed to set Light Mode: " + ex.getMessage());
                 }
             }

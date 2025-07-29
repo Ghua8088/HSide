@@ -18,6 +18,6 @@ Thumbs.db
 # Ignore user-specific files
 *.swp
 *~
-buildtools/
+target/
 # Ignore generated files
 HSIDE.png

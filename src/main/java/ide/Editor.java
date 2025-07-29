@@ -3,6 +3,7 @@ package ide;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
 import org.fife.ui.rtextarea.Gutter;
+import org.fife.ui.rtextarea.FoldIndicatorIcon;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -156,8 +157,8 @@ public class Editor extends JPanel {
         return textArea;
     }
     private void setCodeFoldIcon(){
-        Icon  expandIcon= new ArrowIcon(SwingConstants.SOUTH, 8, Color.GRAY);
-        Icon collapseIcon = new ArrowIcon(SwingConstants.EAST, 8, Color.GRAY);
+        FoldIndicatorIcon  expandIcon= new ArrowIcon(SwingConstants.SOUTH, 8, Color.GRAY);
+        FoldIndicatorIcon collapseIcon = new ArrowIcon(SwingConstants.EAST, 8, Color.GRAY);
         gutter.setFoldIndicatorEnabled(true);
         gutter.setFoldIcons(collapseIcon, expandIcon);
     }
@@ -213,12 +214,13 @@ public class Editor extends JPanel {
     public Gutter getGutter() {
         return scrollPane.getGutter();
     }
-    static class ArrowIcon implements Icon {
+    static class ArrowIcon extends FoldIndicatorIcon {
         private final int direction;
         private final int size;
         private final Color color;
 
         ArrowIcon(int direction, int size, Color color) {
+            super(true);
             this.direction = direction;
             this.size = size;
             this.color = color;
@@ -233,20 +235,16 @@ public class Editor extends JPanel {
             int mid = size / 2;
             switch (direction) {
                 case SwingConstants.EAST -> {
-                    // Draw a chevron >
                     g2.drawLine(x, y, x + mid, y + mid);
                     g2.drawLine(x + mid, y + mid, x, y + size);
                 }
                 case SwingConstants.SOUTH -> {
-                    // Draw a chevron v
                     g2.drawLine(x, y, x + mid, y + mid);
                     g2.drawLine(x + mid, y + mid, x + size, y);
                 }
             }
-
             g2.dispose();
         }
-        
 
         @Override
         public int getIconWidth() {

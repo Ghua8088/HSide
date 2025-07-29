@@ -5,8 +5,6 @@ import org.json.JSONArray;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-
-import javax.swing.JOptionPane;
 public class AIClient {
     private String url;
     private String port;
