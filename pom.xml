@@ -7,7 +7,7 @@
 
   <groupId>com.hside</groupId>
   <artifactId>hside</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.3</version>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
@@ -70,25 +70,49 @@
     </dependencies>
   <build>
   <plugins>
-    <plugin>
-      <groupId>org.codehaus.mojo</groupId>
-      <artifactId>exec-maven-plugin</artifactId>
-      <version>3.1.0</version>
-      <configuration>
-        <mainClass>ide.Notepad</mainClass>
-      </configuration>
-    </plugin>
-    <plugin>
-  <artifactId>maven-jar-plugin</artifactId>
-  <version>3.2.0</version>
-  <configuration>
-    <archive>
-      <manifest>
-        <mainClass>ide.Notepad</mainClass>
-      </manifest>
-    </archive>
-  </configuration>
-</plugin>
+  <plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>3.1.0</version>
+    <configuration>
+      <mainClass>ide.Notepad</mainClass>
+    </configuration>
+  </plugin>
+
+  <plugin>
+    <artifactId>maven-jar-plugin</artifactId>
+    <version>3.2.0</version>
+    <configuration>
+      <archive>
+        <manifest>
+          <mainClass>ide.Notepad</mainClass>
+        </manifest>
+      </archive>
+    </configuration>
+  </plugin>
+  <plugin>
+    <artifactId>maven-assembly-plugin</artifactId>
+    <version>3.6.0</version>
+    <configuration>
+      <descriptorRefs>
+        <descriptorRef>jar-with-dependencies</descriptorRef>
+      </descriptorRefs>
+      <archive>
+        <manifest>
+          <mainClass>ide.Notepad</mainClass>
+        </manifest>
+      </archive>
+    </configuration>
+    <executions>
+      <execution>
+        <id>make-assembly</id>
+        <phase>package</phase>
+        <goals>
+          <goal>single</goal>
+        </goals>
+      </execution>
+    </executions>
+  </plugin>
   </plugins>
 </build>
 </project>

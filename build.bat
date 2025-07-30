@@ -1,0 +1,14 @@
+jpackage ^
+  --type exe ^
+  --name HSide ^
+  --app-version 1.0.3 ^
+  --input target ^
+  --main-jar hside-1.0.3-jar-with-dependencies.jar ^
+  --main-class ide.Notepad ^
+  --java-options "-Xmx512m" ^
+  --icon src/main/resources/icons/icon.ico ^
+  --win-shortcut ^
+  --win-menu ^
+  --win-dir-chooser ^
+  --win-menu-group "HSide" ^
+  --win-shortcut-prompt
