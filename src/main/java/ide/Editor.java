@@ -64,6 +64,7 @@ public class Editor extends JPanel {
                     System.out.println("shift");
                 }else if (e.getKeyCode() == KeyEvent.VK_SPACE && e.isControlDown()) {
                     String context = getText().substring(0, getCaretPosition());
+                    System.out.println(context);
                     String suggestion = aiClient.getAISuggestion(context,textArea.getCaretPosition());
                     if (!suggestion.isEmpty()) {
                         textArea.setGhostText(suggestion,  getCaretPosition());

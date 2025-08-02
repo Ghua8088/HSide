@@ -24,7 +24,7 @@ public class AIClient {
     AIClient() {
         this.port = "11434";
         this.url = "http://localhost:";
-        this.model = "qwen2.5-coder:0.5b";
+        this.model = getAvailableModels()[0];
         if (!isOllamaRunning()) {
             try {
                 ProcessBuilder pb = new ProcessBuilder("ollama", "serve");
@@ -67,14 +67,14 @@ public class AIClient {
             String afterCaret = context.substring(caretPosition);
             String prompt = PromptBuilder.autocompletePrompt(afterCaret,beforeCaret);
             JSONObject payload = new JSONObject()
-                .put("model", "qwen2.5-coder:0.5b")
+                .put("model", this.model)
                 .put("prompt", prompt)
                 .put("stream", false);
             System.out.println("Payload:\n" + payload.toString(2));
             URI uri = URI.create(this.url + this.port + "/api/generate");
             HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(60000);
+            conn.setReadTimeout(60000);
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
@@ -89,9 +89,10 @@ public class AIClient {
                     response.append(line);
                 }
             }
-            JSONObject json = new JSONObject(response.toString());
+            JSONObject json = new JSONObject(response.toString()); 
             String fullResponse = json.getString("response").trim();
             System.out.println("Full Response:\n" + fullResponse);
+            fullResponse = fullResponse.replaceAll("(?s)<think>.*?</think>", "").trim();
             String suggestion = extractCodeBlock(fullResponse);
             System.out.println("Suggestion:\n" + suggestion);
             return suggestion;
@@ -124,7 +125,6 @@ public class AIClient {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);
             conn.setRequestMethod("GET");
-
             StringBuilder response = new StringBuilder();
             try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                 String line;
@@ -141,7 +141,6 @@ public class AIClient {
                 names[i] = model.getString("name");
             }
             return names;
-
         } catch (Exception ex) {
             System.out.println("Error getting available models: " + ex.getMessage());
             ex.printStackTrace();
