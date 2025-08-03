@@ -1,9 +1,9 @@
 jpackage ^
   --type exe ^
   --name HSide ^
-  --app-version 1.0.3 ^
+  --app-version 1.1.4 ^
   --input target ^
-  --main-jar hside-1.0.3-jar-with-dependencies.jar ^
+  --main-jar hside-1.1.4-jar-with-dependencies.jar ^
   --main-class ide.Notepad ^
   --java-options "-Xmx512m" ^
   --icon src/main/resources/icons/icon.ico ^
@@ -11,4 +11,8 @@ jpackage ^
   --win-menu ^
   --win-dir-chooser ^
   --win-menu-group "HSide" ^
-  --win-shortcut-prompt
+  --win-shortcut-prompt^
+  --vendor "Ghua8088"^
+  --copyright "Ghua8088"^
+  --description "HSide is a simple and easy to use IDE for Java with AI support"^
+  --license-file D:\code\HSide\LICENSE
