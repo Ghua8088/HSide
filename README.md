@@ -1,7 +1,5 @@
     # HSIDE – Resurrecting Old Frameworks with Modern Twist AI code editor
-    ![HSIDE Screenshot](https://github.com/Ghua8088/HSide/blob/main/HSIDE.png)
-
-
+    ![Banner](https://github.com/Ghua8088/HSide/blob/main/banner.png)
     HSIDE is a clean, fast, fully offline Java IDE built 100% in Java.  
     It features:
     - AI-powered autocomplete
@@ -52,9 +50,11 @@
 
     ## 🛣️ Roadmap
 
-    - [ ] Tabbed document support
-    - [ ] AI Chat Sidebar (LLM-driven, local)
-    - [ ] Snippet and template manager
+    - [X] Tabbed document support
+    - [X] AI Chat Sidebar (LLM-driven, local)(beta not agentic yet)
+    - [X] add api tokens for better models (beta)
+    - [X] added a theme manager
+    - [X] Snippet and  Layout manager
     - [ ] Agentic Editing (Experimental)
     - [ ] Extensions (Out of reach for now)
 

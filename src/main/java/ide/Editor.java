@@ -27,7 +27,9 @@ public class Editor extends JPanel {
     private String filePath;
     private final Gutter gutter;
     final int[] hoveredLine = {-1};
-    private String word_count,line_count,character_count;
+    private String word_count,line_count,character_count,position_count;
+    private Runnable onCountsChanged;
+    
     public Editor(String dir){
         super(new BorderLayout());
         hoveredLine[0] = -1;
@@ -38,16 +40,7 @@ public class Editor extends JPanel {
         textArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
         textArea.setCodeFoldingEnabled(true);
         textArea.setFont(new Font("Consolas", Font.PLAIN, 16));
-        textArea.setBackground(new Color(45,45,45));
-        textArea.setForeground(Color.WHITE);
-        textArea.setCaretColor(Color.WHITE);
-        textArea.setCurrentLineHighlightColor(new Color(10,10,10,10));
         gutter = scrollPane.getGutter();
-        gutter.setBackground(new Color(30, 30, 30));
-        gutter.setLineNumberColor(new Color(0, 255, 239));
-        gutter.setLineNumberFont(new Font("Roboto", Font.PLAIN,16));
-        gutter.setBorderColor(new Color(60, 60, 60));
-        gutter.setCurrentLineNumberColor(new Color(50, 255, 239));
         add(scrollPane, BorderLayout.CENTER);
         setCodeFoldIcon();
         textArea.addKeyListener(new KeyAdapter() {
@@ -90,20 +83,37 @@ public class Editor extends JPanel {
                 }
             }
         });
-        textArea.addCaretListener((CaretEvent e) -> updatecounts());
+        textArea.addCaretListener((CaretEvent e) -> {
+            updatecounts();
+            if (onCountsChanged != null) {
+                onCountsChanged.run();
+            }
+        });
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
                 setSave(false);
+                updatecounts();
+                if (onCountsChanged != null) {
+                    onCountsChanged.run();
+                }
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
                 setSave(false);
+                updatecounts();
+                if (onCountsChanged != null) {
+                    onCountsChanged.run();
+                }
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
+                updatecounts();
+                if (onCountsChanged != null) {
+                    onCountsChanged.run();
+                }
             }
         });
         gutter.addMouseMotionListener(new MouseMotionAdapter() {
@@ -130,10 +140,12 @@ public class Editor extends JPanel {
         word_count="Word Count: "+getWordCount(getText());
         character_count="Character Count: "+getCharacterCount(getText());
         line_count = "Line Count: "+getLineCount(getText());
+        position_count = "ln " + getCurrentLine() + " col " + getCurrentColumn();
         return new HashMap<String,String>(){{
             put("word_count",word_count);
             put("character_count",character_count);
             put("line_count",line_count);
+            put("position_count",position_count);
         }};
     }
     int getWordCount(String text){
@@ -148,11 +160,37 @@ public class Editor extends JPanel {
     String getLineCountLabel(){
         return line_count;
     }
+    
+    String getPositionCountLabel(){
+        return position_count;
+    }
+    
+    public void setOnCountsChanged(Runnable callback) {
+        this.onCountsChanged = callback;
+    }
     int getCharacterCount(String text){
         return text.length();
     }
     int getLineCount(String text){
         return text.split("\\n").length;
+    }
+    
+    int getCurrentLine() {
+        try {
+            return textArea.getLineOfOffset(textArea.getCaretPosition()) + 1;
+        } catch (Exception e) {
+            return 1;
+        }
+    }
+    
+    int getCurrentColumn() {
+        try {
+            int caretPos = textArea.getCaretPosition();
+            int lineStart = textArea.getLineStartOffset(textArea.getLineOfOffset(caretPos));
+            return caretPos - lineStart + 1;
+        } catch (Exception e) {
+            return 1;
+        }
     }
     public GhostTextPane getTextArea() {
         return textArea;
