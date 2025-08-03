@@ -8,15 +8,39 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 public class PreferencesManager {
-    private static final String PREFERENCES_FILE = "hside_preferences.json";
     private static PreferencesManager instance;
     private JSONObject preferences;
+    private Path preferencesFilePath;
     
     private PreferencesManager() {
+        initializePreferencesPath();
         loadPreferences();
     }
+    
+    private void initializePreferencesPath() {
+        try {
+            // Try to use user's home directory first
+            String userHome = System.getProperty("user.home");
+            Path appDataDir = Paths.get(userHome, ".hside");
+            
+            // Create the directory if it doesn't exist
+            if (!Files.exists(appDataDir)) {
+                Files.createDirectories(appDataDir);
+            }
+            
+            preferencesFilePath = appDataDir.resolve("hside_preferences.json");
+            System.out.println("Preferences will be saved to: " + preferencesFilePath);
+        } catch (Exception e) {
+            // Fallback to current directory if home directory is not accessible
+            System.out.println("Warning: Could not create preferences directory, using current directory");
+            preferencesFilePath = Paths.get("hside_preferences.json");
+        }
+    }
+    
+
     
     public static PreferencesManager getInstance() {
         if (instance == null) {
@@ -27,9 +51,8 @@ public class PreferencesManager {
     
     private void loadPreferences() {
         try {
-            Path filePath = Paths.get(PREFERENCES_FILE);
-            if (Files.exists(filePath)) {
-                String content = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
+            if (Files.exists(preferencesFilePath)) {
+                String content = new String(Files.readAllBytes(preferencesFilePath), StandardCharsets.UTF_8);
                 preferences = new JSONObject(content);
             } else {
                 preferences = new JSONObject();
@@ -51,7 +74,7 @@ public class PreferencesManager {
         preferences.put("aiPort", "11434");
         
         // Theme Settings
-        preferences.put("theme", "FlatLaf Light");
+        preferences.put("theme", "Dark");
         
         // Layout Settings
         preferences.put("fileTreeVisible", true);
@@ -88,8 +111,8 @@ public class PreferencesManager {
     public void savePreferences() {
         try {
             String content = preferences.toString(2); // Pretty print with 2 spaces
-            Files.write(Paths.get(PREFERENCES_FILE), content.getBytes(StandardCharsets.UTF_8));
-            System.out.println("Preferences saved successfully");
+            Files.write(preferencesFilePath, content.getBytes(StandardCharsets.UTF_8));
+            System.out.println("Preferences saved successfully to: " + preferencesFilePath);
         } catch (Exception e) {
             System.out.println("Error saving preferences: " + e.getMessage());
         }
@@ -148,7 +171,7 @@ public class PreferencesManager {
     }
     
     public String getTheme() {
-        return preferences.optString("theme", "FlatLaf Light");
+        return preferences.optString("theme", "Dark");
     }
     
     // Layout Settings
@@ -419,5 +442,9 @@ public class PreferencesManager {
         } catch (Exception e) {
             System.out.println("Error importing preferences: " + e.getMessage());
         }
+    }
+    
+    public String getPreferencesFilePath() {
+        return preferencesFilePath.toString();
     }
 } 

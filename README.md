@@ -34,6 +34,13 @@
     - `lib/` → External dependencies (JARs)
     - `buildtools/` → Build outputs (`.exe`, `.jar`)
     - `manifest.txt` → Manifest for packaging
+
+    ## 📂 Preferences Location
+
+    HSide stores user preferences in:
+    - **Windows**: `%USERPROFILE%\.hside\hside_preferences.json`
+    - **Linux/macOS**: `~/.hside/hside_preferences.json`
+    - **Fallback**: Current directory if home directory is not accessible
     ---
     ## 📸 Screenshots
 

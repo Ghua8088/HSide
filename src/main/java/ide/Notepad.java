@@ -71,8 +71,12 @@ public final class Notepad extends JFrame {
         ThemeManager themeManager = ThemeManager.getInstance();
         themeManager.setMainFrame(this);
         
-        // Load saved theme from preferences
+        // Load saved theme from preferences, or apply default theme
         String savedTheme = prefs.getTheme();
+        if (savedTheme == null || savedTheme.isEmpty()) {
+            savedTheme = "Dark"; // Default to Dark theme
+            prefs.setTheme(savedTheme);
+        }
         themeManager.applyTheme(savedTheme);
         
         // Initialize icons
@@ -104,6 +108,9 @@ public final class Notepad extends JFrame {
         
         // Initialize manager
         manager = new NotepadManager(this);
+        
+        // Apply theme to all existing editors after manager is initialized
+        manager.applyThemeToAllEditors();
         
         // Setup file tree
         currentProjectRoot = new File(System.getProperty("user.dir"));

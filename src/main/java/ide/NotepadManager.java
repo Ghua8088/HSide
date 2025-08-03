@@ -431,7 +431,7 @@ public class NotepadManager {
         themeManager.toggleDarkMode();
         applyThemeToAllEditors();
     }    
-    private void applyThemeToAllEditors() {
+    public void applyThemeToAllEditors() {
         for (int i = 0; i < tabbedPane.getTabCount(); i++) {
             Editor editor = (Editor) tabbedPane.getComponentAt(i);
             themeManager.applyEditorTheme(editor);
