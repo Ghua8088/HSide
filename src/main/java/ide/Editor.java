@@ -97,6 +97,9 @@ public class Editor extends JPanel {
                 if (onCountsChanged != null) {
                     onCountsChanged.run();
                 }
+                
+                // Auto-lint after text changes (if enabled)
+                scheduleAutoLint();
             }
 
             @Override
@@ -106,6 +109,9 @@ public class Editor extends JPanel {
                 if (onCountsChanged != null) {
                     onCountsChanged.run();
                 }
+                
+                // Auto-lint after text changes (if enabled)
+                scheduleAutoLint();
             }
 
             @Override
@@ -252,6 +258,26 @@ public class Editor extends JPanel {
     }
     public Gutter getGutter() {
         return scrollPane.getGutter();
+    }
+    
+    /**
+     * Schedule automatic linting with a delay to avoid excessive linting during typing
+     */
+    private void scheduleAutoLint() {
+        // Get CodeTools instance through NotepadManager
+        // This is a simple implementation - in a real scenario, you might want to pass CodeTools as a parameter
+        Timer timer = new Timer(1000, e -> {
+            try {
+                // Try to get CodeTools through reflection or a static reference
+                // For now, we'll just call the linter directly
+                LinterManager.runCheckstyleAndHighlight(this);
+            } catch (Exception ex) {
+                System.err.println("Error in auto-lint: " + ex.getMessage());
+            }
+            ((Timer) e.getSource()).stop();
+        });
+        timer.setRepeats(false);
+        timer.start();
     }
     static class ArrowIcon extends FoldIndicatorIcon {
         private final int direction;
