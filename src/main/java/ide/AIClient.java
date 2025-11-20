@@ -34,6 +34,7 @@ public class AIClient {
     private String baseUrl = "";
     private String model = "";
     private String port = "11434";
+    private AIToolsBridge toolsBridge;
     
     // Provider-specific configurations
     private final Map<Provider, String> defaultUrls = new HashMap<>();
@@ -182,6 +183,63 @@ public class AIClient {
         return port;
     }
     
+    /**
+     * Set the AIToolsBridge for this client
+     * @param toolsBridge The tools bridge instance
+     */
+    public void setToolsBridge(AIToolsBridge toolsBridge) {
+        this.toolsBridge = toolsBridge;
+    }
+    
+    /**
+     * Get the AIToolsBridge instance
+     * @return The tools bridge instance
+     */
+    public AIToolsBridge getToolsBridge() {
+        return toolsBridge;
+    }
+    
+    /**
+     * Process tool calls in AI responses
+     * @param response The AI response that may contain tool calls
+     * @return The processed response with tool results
+     */
+    private String processToolCalls(String response) {
+        if (toolsBridge == null || response == null || response.isEmpty()) {
+            return response;
+        }
+        
+        try {
+            // Look for JSON tool calls in the response
+            // Pattern: <tool_call>{"operation": "...", ...}</tool_call>
+            String toolCallPattern = "<tool_call>(.*?)</tool_call>";
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(toolCallPattern, java.util.regex.Pattern.DOTALL);
+            java.util.regex.Matcher matcher = pattern.matcher(response);
+            
+            StringBuilder processedResponse = new StringBuilder(response);
+            int offset = 0;
+            
+            while (matcher.find()) {
+                String toolCallJson = matcher.group(1);
+                String toolResult = toolsBridge.processCommand(toolCallJson);
+                
+                // Replace the tool call with the result
+                String replacement = "<tool_result>" + toolResult + "</tool_result>";
+                int start = matcher.start() + offset;
+                int end = matcher.end() + offset;
+                processedResponse.replace(start, end, replacement);
+                
+                // Update offset for subsequent replacements
+                offset += replacement.length() - (end - start);
+            }
+            
+            return processedResponse.toString();
+        } catch (Exception e) {
+            System.err.println("Error processing tool calls: " + e.getMessage());
+            return response;
+        }
+    }
+    
     // Main AI suggestion method for code completion
     public String getAISuggestion(String context, int caretPosition) {
         if (context == null || context.isEmpty()) {
@@ -239,20 +297,29 @@ public class AIClient {
                 }
             }
             
+            String response = "";
             switch (currentProvider) {
                 case OLLAMA:
-                    return getOllamaChatResponse(message, context);
+                    response = getOllamaChatResponse(message, context);
+                    break;
                 case OPENAI:
-                    return getOpenAIChatResponse(message, context);
+                    response = getOpenAIChatResponse(message, context);
+                    break;
                 case CLAUDE:
-                    return getClaudeChatResponse(message, context);
+                    response = getClaudeChatResponse(message, context);
+                    break;
                 case GEMINI:
-                    return getGeminiChatResponse(message, context);
+                    response = getGeminiChatResponse(message, context);
+                    break;
                 case CUSTOM:
-                    return getCustomChatResponse(message, context);
+                    response = getCustomChatResponse(message, context);
+                    break;
                 default:
                     return "";
             }
+            
+            // Process any tool calls in the response
+            return processToolCalls(response);
         } catch (Exception ex) {
             System.out.println("AI Chat Error: " + ex.getMessage());
             ex.printStackTrace();

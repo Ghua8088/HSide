@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Collections;
 
@@ -23,6 +24,8 @@ import com.vdurmont.emoji.EmojiParser;
 
 import javax.swing.text.Highlighter;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.event.TreeWillExpandListener;
+import javax.swing.event.TreeExpansionEvent;
 
 import com.puppycrawl.tools.checkstyle.Checker;
 import com.puppycrawl.tools.checkstyle.PropertiesExpander;
@@ -125,12 +128,20 @@ public final class Notepad extends JFrame {
                     splitPane.setDividerLocation(200);
                     TreePath path = fileTree.getSelectionPath();
                     if (path != null) {
-                        StringBuilder filePath = new StringBuilder(currentProjectRoot.getAbsolutePath());
-                        Object[] nodes = path.getPath();
-                        for (int i = 1; i < nodes.length; i++) { // skip root
-                            filePath.append(File.separator).append(nodes[i].toString());
+                        DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) path.getLastPathComponent();
+                        Object userObj = selectedNode.getUserObject();
+                        File selectedFile = null;
+                        if (userObj instanceof File f) {
+                            selectedFile = f;
+                        } else {
+                            // fallback: reconstruct path from tree strings
+                            StringBuilder filePath = new StringBuilder(currentProjectRoot.getAbsolutePath());
+                            Object[] nodes = path.getPath();
+                            for (int i = 1; i < nodes.length; i++) { // skip root
+                                filePath.append(File.separator).append(nodes[i].toString());
+                            }
+                            selectedFile = new File(filePath.toString());
                         }
-                        File selectedFile = new File(filePath.toString());
                         try {
                             String mimeType = Files.probeContentType(selectedFile.toPath());
                             if (mimeType == null || !mimeType.startsWith("text")) {
@@ -167,12 +178,60 @@ public final class Notepad extends JFrame {
             }
         };
         fileTree.addMouseListener(mouseAdapter);
+        // Add lazy-loading for directory nodes when expanded
+        fileTree.addTreeWillExpandListener(new TreeWillExpandListener() {
+            @Override
+            public void treeWillExpand(TreeExpansionEvent event) throws javax.swing.tree.ExpandVetoException {
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode) event.getPath().getLastPathComponent();
+                Object userObj = node.getUserObject();
+                if (userObj instanceof File dir && dir.isDirectory()) {
+                    // if first child is a placeholder (Boolean.TRUE), load children
+                    if (node.getChildCount() == 1) {
+                        DefaultMutableTreeNode first = (DefaultMutableTreeNode) node.getChildAt(0);
+                        if (Boolean.TRUE.equals(first.getUserObject())) {
+                            // load children in background
+                            new Thread(() -> {
+                                File[] files = dir.listFiles();
+                                java.util.List<DefaultMutableTreeNode> children = new java.util.ArrayList<>();
+                                if (files != null) {
+                                    java.util.Arrays.sort(files, (a, b) -> {
+                                        if (a.isDirectory() && !b.isDirectory()) return -1;
+                                        if (!a.isDirectory() && b.isDirectory()) return 1;
+                                        return a.getName().compareToIgnoreCase(b.getName());
+                                    });
+                                    for (File f : files) {
+                                        DefaultMutableTreeNode childNode = new DefaultMutableTreeNode(f);
+                                        if (f.isDirectory()) {
+                                            File[] sub = f.listFiles();
+                                            if (sub != null && sub.length > 0) {
+                                                childNode.add(new DefaultMutableTreeNode(Boolean.TRUE));
+                                            }
+                                        }
+                                        children.add(childNode);
+                                    }
+                                }
+                                SwingUtilities.invokeLater(() -> {
+                                    node.removeAllChildren();
+                                    for (DefaultMutableTreeNode c : children) node.add(c);
+                                    treeModel.nodeStructureChanged(node);
+                                });
+                            }).start();
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void treeWillCollapse(TreeExpansionEvent event) throws javax.swing.tree.ExpandVetoException {
+                // no-op
+            }
+        });
         
         // Setup terminal
         terminal = new Terminal(currentProjectRoot.getAbsolutePath());
         JScrollPane terminalScroll = new JScrollPane(terminal);
         editorTerminalSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, manager.getTabbedPane(), terminalScroll);
-        editorTerminalSplitPane.setDividerLocation(600);
+        editorTerminalSplitPane.setDividerLocation(400);
         
         // Create main horizontal split pane for file tree and editor/terminal
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, fileTree, editorTerminalSplitPane);
@@ -265,6 +324,14 @@ public final class Notepad extends JFrame {
         currentProjectRoot = root;
         DefaultMutableTreeNode rootNode = createFileTree(root);
         treeModel.setRoot(rootNode);
+        // Update terminal working directory to the new project root
+        try {
+            if (terminal != null && root != null && root.exists() && root.isDirectory()) {
+                terminal.setCurrentDir(root);
+            }
+        } catch (Exception e) {
+            NotificationsHandler.showWarning("Failed to set terminal directory: " + e.getMessage());
+        }
     }
     private void reopenClosedTab() {
         // This is now handled by NotepadManager
@@ -394,15 +461,24 @@ public final class Notepad extends JFrame {
         }
     }
     private DefaultMutableTreeNode createFileTree(File dir) {
-        DefaultMutableTreeNode node = new DefaultMutableTreeNode(dir.getName());
+        DefaultMutableTreeNode node = new DefaultMutableTreeNode(dir);
         File[] files = dir.listFiles();
         if (files != null) {
+            Arrays.sort(files, (a, b) -> {
+                if (a.isDirectory() && !b.isDirectory()) return -1;
+                if (!a.isDirectory() && b.isDirectory()) return 1;
+                return a.getName().compareToIgnoreCase(b.getName());
+            });
             for (File currFile : files) {
+                DefaultMutableTreeNode child = new DefaultMutableTreeNode(currFile);
                 if (currFile.isDirectory()) {
-                    node.add(createFileTree(currFile));
-                } else {
-                    node.add(new DefaultMutableTreeNode(currFile.getName()));
+                    File[] sub = currFile.listFiles();
+                    if (sub != null && sub.length > 0) {
+                        // placeholder so the node shows an expand handle
+                        child.add(new DefaultMutableTreeNode(Boolean.TRUE));
+                    }
                 }
+                node.add(child);
             }
         }
         return node;
@@ -492,6 +568,14 @@ public final class Notepad extends JFrame {
     
     public NotepadManager getManager() {
         return manager;
+    }
+    
+    public Terminal getTerminal() {
+        return terminal;
+    }
+    
+    public File getProjectRoot() {
+        return currentProjectRoot;
     }
    public ImageIcon loadIcon(String path, int size, boolean invert) {
         try {

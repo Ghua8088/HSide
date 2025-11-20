@@ -1,5 +1,6 @@
 package ide;
 
+import ide.git.GitService;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -17,8 +18,10 @@ public class NotepadManager {
     private final JMenuBar menuBar;
     private final JPanel footer;
     private final JLabel wordCount, lineCount, characterCount, positionCount, support;
+    private final JComboBox<String> languageSelector;
     private final JFileChooser fileChooser;
     private final JPanel layoutButtonPanel;
+    private CodeTools codeTools;
     
     public NotepadManager(Notepad notepad) {
         this.notepad = notepad;
@@ -32,8 +35,14 @@ public class NotepadManager {
         this.characterCount = new JLabel("Character Count: 0");
         this.positionCount = new JLabel("ln 1 col 1");
         this.support = new JLabel("UTF-16");
+        this.languageSelector = new JComboBox<>();
         this.fileChooser = new JFileChooser();
         this.layoutButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
+        this.codeTools = CodeTools.getInstance(this);
+        
+        // Initialize AI tools bridge
+        AIToolsBridge toolsBridge = AIToolsBridge.getInstance(codeTools);
+        AIBridge.getInstance().setToolsBridge(toolsBridge);
         
         initializeComponents();
         setupEventHandlers();
@@ -60,12 +69,60 @@ public class NotepadManager {
         JMenu editMenu = createEditMenu();
         JMenu helpMenu = createHelpMenu();
         JMenu aiMenu = createAIMenu();
+        JMenu gitMenu = createGitMenu();
         
         // Add menus to menu bar
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(helpMenu);
         menuBar.add(aiMenu);
+        menuBar.add(gitMenu);
+    }
+
+    private JMenu createGitMenu() {
+        JMenu gitMenu = new JMenu("Git");
+        JMenuItem statusItem = new JMenuItem("Status");
+        JMenuItem branchesItem = new JMenuItem("Branches");
+
+        statusItem.addActionListener(e -> {
+            // Run in background
+            new Thread(() -> {
+                File projectRoot = notepad.getProjectRoot();
+                String status = GitService.getStatus(projectRoot);
+                SwingUtilities.invokeLater(() -> {
+                    final String display = (status == null) ? "(no output)" : status;
+                    if (display.length() > 800) {
+                        JTextArea ta = new JTextArea(display);
+                        ta.setEditable(false);
+                        JScrollPane sp = new JScrollPane(ta);
+                        sp.setPreferredSize(new Dimension(700, 400));
+                        JOptionPane.showMessageDialog(notepad, sp, "Git Status", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        // Short messages shown as notification
+                        NotificationsHandler.showInfo(display.replaceAll("\r?\n", " | "));
+                    }
+                });
+            }).start();
+        });
+
+        branchesItem.addActionListener(e -> {
+            new Thread(() -> {
+                File projectRoot = notepad.getProjectRoot();
+                String out = GitService.getBranches(projectRoot);
+                SwingUtilities.invokeLater(() -> {
+                    final String display = (out == null) ? "(no output)" : out;
+                    JTextArea ta = new JTextArea(display);
+                    ta.setEditable(false);
+                    JScrollPane sp = new JScrollPane(ta);
+                    sp.setPreferredSize(new Dimension(400, 300));
+                    JOptionPane.showMessageDialog(notepad, sp, "Git Branches", JOptionPane.INFORMATION_MESSAGE);
+                });
+            }).start();
+        });
+
+        gitMenu.add(statusItem);
+        gitMenu.add(branchesItem);
+        return gitMenu;
     }
     
     private JMenu createFileMenu() {
@@ -216,13 +273,27 @@ public class NotepadManager {
         JMenu aiMenu = new JMenu("AI");
         JMenuItem aiSettings = new JMenuItem("AI Settings");
         JMenuItem aiChat = new JMenuItem("AI Chat");
+        JMenuItem codeReplace = new JMenuItem("Code Replace");
+        JMenuItem codeToolsSettings = new JMenuItem("Code Tools Settings");
+        JMenuItem lintCurrent = new JMenuItem("Lint Current Editor");
+        JMenuItem lintAll = new JMenuItem("Lint All Editors");
         
         aiSettings.addActionListener(e -> showAISettings());
         aiChat.addActionListener(e -> toggleAIChat());
+        codeReplace.addActionListener(e -> codeTools.showReplaceDialog());
+        codeToolsSettings.addActionListener(e -> codeTools.showSettingsDialog());
+        lintCurrent.addActionListener(e -> codeTools.lintCurrentEditor());
+        lintAll.addActionListener(e -> codeTools.lintAllEditors());
         
         aiMenu.add(aiSettings);
         aiMenu.addSeparator();
         aiMenu.add(aiChat);
+        aiMenu.addSeparator();
+        aiMenu.add(codeReplace);
+        aiMenu.add(codeToolsSettings);
+        aiMenu.addSeparator();
+        aiMenu.add(lintCurrent);
+        aiMenu.add(lintAll);
         return aiMenu;
     }
     
@@ -241,9 +312,107 @@ public class NotepadManager {
         footer.add(positionCount);
         footer.add(Box.createHorizontalGlue());
         footer.add(support);
+        footer.add(Box.createHorizontalStrut(12));
+        // language selector
+        languageSelector.setPrototypeDisplayValue("JavaScript   ");
+        languageSelector.addItem("Auto");
+        languageSelector.addItem("Plain");
+        languageSelector.addItem("Java");
+        languageSelector.addItem("Python");
+        languageSelector.addItem("JavaScript");
+        languageSelector.addItem("TypeScript");
+        languageSelector.addItem("HTML");
+        languageSelector.addItem("CSS");
+        languageSelector.addItem("JSON");
+        languageSelector.addItem("XML");
+        languageSelector.addItem("Shell");
+        languageSelector.addItem("C");
+        languageSelector.addItem("C++");
+        languageSelector.addItem("Go");
+        languageSelector.setSelectedItem("Auto");
+        // Auto-size the combo to fit the widest item text
+        try {
+            java.awt.Font font = languageSelector.getFont();
+            java.awt.FontMetrics fm = languageSelector.getFontMetrics(font);
+            int maxW = 0;
+            for (int i = 0; i < languageSelector.getItemCount(); i++) {
+                String s = languageSelector.getItemAt(i);
+                if (s != null) maxW = Math.max(maxW, fm.stringWidth(s));
+            }
+            int h = fm.getHeight() + 6;
+            languageSelector.setPreferredSize(new Dimension(maxW + 28, h));
+        } catch (Exception ex) {
+            // ignore sizing failures
+        }
+        languageSelector.addActionListener(e -> {
+            String lang = (String) languageSelector.getSelectedItem();
+            applyLanguageToOpenEditors(lang);
+            // Also set terminal style if available
+            try {
+                Notepad np = this.notepad;
+                Terminal t = np.getTerminal();
+                if (t != null) {
+                    SyntaxHelper.setSyntaxStyleByName(t, mapToSyntaxName(lang));
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+        });
+        footer.add(languageSelector);
         footer.add(Box.createHorizontalStrut(20));
         footer.add(lineCount);
         footer.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+    }
+
+    private static String mapToSyntaxName(String lang) {
+        if (lang == null) return "none";
+        return switch (lang.toLowerCase()) {
+            case "auto" -> "none";
+            case "plain" -> "none";
+            case "javascript" -> "javascript";
+            case "typescript" -> "typescript";
+            case "python" -> "python";
+            case "html" -> "html";
+            case "css" -> "css";
+            case "json" -> "json";
+            case "xml" -> "xml";
+            case "shell" -> "bash";
+            case "c++" -> "c++";
+            case "c" -> "c";
+            case "go" -> "go";
+            case "java" -> "java";
+            default -> lang.toLowerCase();
+        };
+    }
+
+    private void applyLanguageToOpenEditors(String lang) {
+        if (lang == null) return;
+        if (lang.equalsIgnoreCase("auto")) {
+            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                Editor ed = (Editor) tabbedPane.getComponentAt(i);
+                try {
+                    String path = ed.getFilePath();
+                    if (path != null && !path.isEmpty()) {
+                        SyntaxHelper.setSyntaxStyleByExtension(ed.getTextArea(), path);
+                    } else {
+                        SyntaxHelper.setSyntaxStyleByName(ed.getTextArea(), "none");
+                    }
+                } catch (Exception ex) {
+                    // ignore failures
+                }
+            }
+            return;
+        }
+
+        String name = mapToSyntaxName(lang);
+        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+            Editor ed = (Editor) tabbedPane.getComponentAt(i);
+            try {
+                SyntaxHelper.setSyntaxStyleByName(ed.getTextArea(), name);
+            } catch (Exception ex) {
+                // ignore failures
+            }
+        }
     }
     
     private void setupTabbedPane() {
@@ -746,7 +915,7 @@ public class NotepadManager {
     
     private void openGitHub() {
         try {
-            Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start https://github.com/Ghua8088?tab=repositories"});
+            Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start https://ghua8088.github.io/blog/#/projects/HSIDE"});
         } catch (IOException e) {
             NotificationsHandler.showError("Failed to open GitHub");
         }
@@ -836,5 +1005,13 @@ public class NotepadManager {
     
     public void applyThemeToEditor(Editor editor) {
         themeManager.applyEditorTheme(editor);
+    }
+    
+    /**
+     * Get the CodeTools instance
+     * @return CodeTools instance
+     */
+    public CodeTools getCodeTools() {
+        return codeTools;
     }
 } 

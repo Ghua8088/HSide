@@ -10,6 +10,8 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -23,10 +25,12 @@ import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 public final class Terminal extends RSyntaxTextArea{
     private static final long serialVersionUID = 1L;
     private transient Process process;
-    private boolean isRunning = false;
+    private volatile boolean isRunning = false;
     private File currentDir;
     private String prompt = "> ";
     private int inputStart = 0;
+    private final List<String> history = new ArrayList<>();
+    private int historyIndex = -1;
     
     JButton copyBtn = new JButton("Copy");
     public Terminal(String projectRoot) {
@@ -40,7 +44,7 @@ public final class Terminal extends RSyntaxTextArea{
         });
         add(copyBtn);
         setEditable(true);
-        currentDir = new File(projectRoot);
+        currentDir = (projectRoot != null) ? new File(projectRoot) : new File(System.getProperty("user.dir"));
         updatePrompt();
         String os = getCurrentOS();
         try {
@@ -62,14 +66,54 @@ public final class Terminal extends RSyntaxTextArea{
             @Override
             public void keyPressed(KeyEvent e) {
                 try {
+                    // Prevent caret from moving into the output area
                     if (getCaretPosition() < inputStart) {
                         setCaretPosition(getText().length());
                     }
+
+                    // Command history navigation
+                    if (e.getKeyCode() == KeyEvent.VK_UP) {
+                        e.consume();
+                        if (!history.isEmpty()) {
+                            if (historyIndex == -1) historyIndex = history.size() - 1;
+                            else historyIndex = Math.max(0, historyIndex - 1);
+                            setInputText(history.get(historyIndex));
+                        }
+                        return;
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                        e.consume();
+                        if (!history.isEmpty()) {
+                            if (historyIndex == -1) return;
+                            historyIndex = Math.min(history.size() - 1, historyIndex + 1);
+                            if (historyIndex >= 0 && historyIndex < history.size()) {
+                                setInputText(history.get(historyIndex));
+                            } else {
+                                setInputText("");
+                                historyIndex = -1;
+                            }
+                        }
+                        return;
+                    }
+
+                    // Clear screen: Ctrl+L
+                    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_L) {
+                        e.consume();
+                        setText("");
+                        updatePrompt();
+                        historyIndex = -1;
+                        return;
+                    }
+
                     if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                         e.consume();
                         String fullText = getText();
                         String command = fullText.substring(inputStart).trim();
                         append("\n");
+                        if (!command.isEmpty()) {
+                            history.add(command);
+                        }
+                        historyIndex = -1;
                         handleCommand(command);
                     }
                 } catch (Exception ex) {
@@ -217,13 +261,33 @@ public final class Terminal extends RSyntaxTextArea{
     }
     @Override
     public String getSelectedText() {
-        String selectedText ="";
-        try {
-            selectedText = (String) Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
-        } catch (HeadlessException | UnsupportedFlavorException | IOException e) {
-            System.err.println("Failed to get clipboard contents: " + e.getMessage());
-        }
-        return selectedText;
+        return super.getSelectedText();
     }
 
+    /**
+     * Set the terminal's current working directory from other code (e.g. Notepad).
+     */
+    public void setCurrentDir(File dir) {
+        if (dir != null && dir.exists() && dir.isDirectory()) {
+            currentDir = dir;
+            SwingUtilities.invokeLater(this::updatePrompt);
+        } else {
+            append("[ERR] Invalid directory: " + (dir == null ? "null" : dir.getAbsolutePath()) + "\n");
+        }
+    }
+
+    /**
+     * Replace the current input (from inputStart to end) with the provided text
+     * and move the caret to the end.
+     */
+    private void setInputText(String txt) {
+        try {
+            String before = getText().substring(0, inputStart);
+            setText(before + txt);
+            setCaretPosition(getText().length());
+        } catch (Exception e) {
+            append("[ERR] Failed to set input text: " + e.getMessage() + "\n");
+            updatePrompt();
+        }
+    }
 }
